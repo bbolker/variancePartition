@@ -1,24 +1,30 @@
+## default control for lmer fits
+vpcontrol <- lme4::lmerControl(calc.derivs = FALSE,
+                               check.rankX = "stop.deficient",
+                               check.conv.singular =
+                                 lme4::.makeCC("ignore", tol = 1e-4))
+
 
 #' Fit linear (mixed) model
-#' 
+#'
 #' Fit linear (mixed) model to estimate contribution of multiple sources of variation while simultaneously correcting for all other variables.
 #'
 #' @param exprObj matrix of expression data (g genes x n samples), or \code{ExpressionSet}, or \code{EList} returned by \code{voom()} from the \code{limma} package
 #' @param formula specifies variables for the linear (mixed) model.  Must only specify covariates, since the rows of exprObj are automatically used a a response. e.g.: \code{~ a + b + (1|c)}
-#' @param data \code{data.frame} with columns corresponding to formula 
-#' @param REML use restricted maximum likelihood to fit linear mixed model. default is FALSE.  See Details.  
+#' @param data \code{data.frame} with columns corresponding to formula
+#' @param REML use restricted maximum likelihood to fit linear mixed model. default is FALSE.  See Details.
 #' @param useWeights if TRUE, analysis uses heteroskedastic error estimates from voom().  Value is ignored unless exprObj is an \code{EList()} from \code{voom()} or \code{weightsMatrix} is specified
-#' @param weightsMatrix matrix the same dimension as exprObj with observation-level weights from \code{voom()}.  Used only if useWeights is TRUE 
+#' @param weightsMatrix matrix the same dimension as exprObj with observation-level weights from \code{voom()}.  Used only if useWeights is TRUE
 #' @param showWarnings show warnings about model fit (default TRUE)
 #' @param fxn apply function to model fit for each gene.  Defaults to identify function so it returns the model fit itself
 #' @param control control settings for \code{lmer()}
 #' @param BPPARAM parameters for parallel evaluation
 #' @param quiet suppress message, default FALSE
 #' @param ... Additional arguments for \code{lmer()} or \code{lm()}
-#' 
+#'
 #' @return
 #' \code{list()} of where each entry is a model fit produced by \code{lmer()} or \code{lm()}
-#' 
+#'
 #' @importFrom MASS ginv
 # @importFrom RSpectra eigs_sym
 #' @importFrom grDevices colorRampPalette hcl
@@ -28,8 +34,8 @@
 #' @importFrom iterators nextElem
 #' @import Rdpack
 #'
-#' @details 
-#' A linear (mixed) model is fit for each gene in exprObj, using formula to specify variables in the regression.  If categorical variables are modeled as random effects (as is recommended), then a linear mixed model us used.  For example if formula is \code{~ a + b + (1|c)}, then the model is 
+#' @details
+#' A linear (mixed) model is fit for each gene in exprObj, using formula to specify variables in the regression.  If categorical variables are modeled as random effects (as is recommended), then a linear mixed model us used.  For example if formula is \code{~ a + b + (1|c)}, then the model is
 #'
 #' \code{fit <- lmer( exprObj[j,] ~ a + b + (1|c), data=data)}
 #'
@@ -40,7 +46,7 @@
 #' In both cases, \code{useWeights=TRUE} causes \code{weightsMatrix[j,]} to be included as weights in the regression model.
 #'
 #' Note: Fitting the model for 20,000 genes can be computationally intensive.  To accelerate computation, models can be fit in parallel using \code{BiocParallel} to run in parallel.  Parallel processing must be enabled before calling this function.  See below.
-#' 
+#'
 #' The regression model is fit for each gene separately. Samples with missing values in either gene expression or metadata are omitted by the underlying call to lm/lmer.
 #'
 #' Since this function returns a list of each model fit, using this function is slower and uses more memory than \code{fitExtractVarPartModel()}.
@@ -58,31 +64,31 @@
 #' # geneExpr: matrix of gene expression values
 #' # info: information/metadata about each sample
 #' data(varPartData)
-#' 
+#'
 #' # Specify variables to consider
 #' # Age is continuous so we model it as a fixed effect
 #' # Individual and Tissue are both categorical, so we model them as random effects
-#' form <- ~ Age + (1|Individual) + (1|Tissue) 
-#' 
+#' form <- ~ Age + (1|Individual) + (1|Tissue)
+#'
 #' # Step 1: fit linear mixed model on gene expression
 #' # If categorical variables are specified, a linear mixed model is used
 #' # If all variables are modeled as continuous, a linear model is used
 #' # each entry in results is a regression model fit on a single gene
 #' # Step 2: extract variance fractions from each model fit
-#' # for each gene, returns fraction of variation attributable to each variable 
+#' # for each gene, returns fraction of variation attributable to each variable
 #' # Interpretation: the variance explained by each variable
 #' # after correction for all other variables
 #' varPart <- fitExtractVarPartModel( geneExpr, form, info )
-#'  
+#'
 #' # violin plot of contribution of each variable to total variance
 #' # also sort columns
 #' plotVarPart( sortCols( varPart ) )
 #'
-#' # Advanced: 
+#' # Advanced:
 #' # Fit model and extract variance in two separate steps
 #' # Step 1: fit model for each gene, store model fit for each gene in a list
 #' results <- fitVarPartModel( geneExpr, form, info )
-#' 
+#'
 #' # Step 2: extract variance fractions
 #' varPart <- extractVarPart( results )
 #'
@@ -93,7 +99,7 @@
 #' form <- ~ (1|sex) + (1|type) + score
 #' info2 <- Biobase::pData(sample.ExpressionSet)
 #' results2 <- fitVarPartModel( sample.ExpressionSet, form, info2 )
-#' 
+#'
 # # Parallel processing using multiple cores with reduced memory usage
 # param <- SnowParam(4, "SOCK", progressbar=TRUE)
 # results2 <- fitVarPartModel( sample.ExpressionSet, form, info2, BPPARAM=param)
@@ -102,26 +108,26 @@
 #' @docType methods
 #' @rdname fitVarPartModel-method
 setGeneric("fitVarPartModel", signature="exprObj",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,showWarnings=TRUE,fxn=identity, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(),...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,showWarnings=TRUE,fxn=identity, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(),...)
       standardGeneric("fitVarPartModel")
 )
 
 # internal driver function
 #' @importFrom BiocParallel SerialParam bpiterate bplapply bpok
 #' @importFrom methods is new
-#' @importFrom lme4 lmer 
+#' @importFrom lme4 lmer
 #' @importFrom RhpcBLASctl omp_set_num_threads
-#' @importFrom progress progress_bar 
+#' @importFrom progress progress_bar
 #' @importFrom utils object.size
 #' @import foreach
 #' @import lme4
-.fitVarPartModel <- function( exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL, showWarnings=TRUE,fxn=identity, colinearityCutoff=.999,control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=quiet, BPPARAM=SerialParam(), ...){
+.fitVarPartModel <- function( exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL, showWarnings=TRUE,fxn=identity, colinearityCutoff=.999,control = vpcontrol, quiet=quiet, BPPARAM=SerialParam(), ...){
 
 	# convert to data.frame
 	data = as.data.frame(data)
 
 	# if( ! is(exprObj, "sparseMatrix")){
-	# 	exprObj = as.matrix( exprObj )	
+	# 	exprObj = as.matrix( exprObj )
 	# }
 	formula = stats::as.formula( formula )
 
@@ -129,7 +135,7 @@ setGeneric("fitVarPartModel", signature="exprObj",
 	data = data[, colnames(data) %in% unique(all.vars(formula)), drop=FALSE]
 
 	# check dimensions of reponse and covariates
-	if( ncol(exprObj) != nrow(data) ){		
+	if( ncol(exprObj) != nrow(data) ){
 		stop( "the number of samples in exprObj (i.e. cols) must be the same as in data (i.e rows)" )
 	}
 
@@ -183,7 +189,7 @@ setGeneric("fitVarPartModel", signature="exprObj",
 	# Use term 'responsePlaceholder' to store the value of reponse j (exprObj[j,])
 	# This is not an ideal way to structure the evaluation of response j.
 	# 	The formula is evaluated a different scope, (i.e. within lmer()), and there is no need to pass the
-	# 	entire exprObj object into that scope.  With lexical scope, I found it was possible that  
+	# 	entire exprObj object into that scope.  With lexical scope, I found it was possible that
 	# 	the value of exprObj[j,] could be different when evaluated in the lower scope
 	# This placeholder term addresses that issue
 	form = paste( "responsePlaceholder$E", paste(as.character( formula), collapse=''))
@@ -201,7 +207,7 @@ setGeneric("fitVarPartModel", signature="exprObj",
 			stop("Variable in formula is not found: ", gsub("object '(.*)' not found", "\\1", possibleError$message) )
 		}
 	}
-	
+
 	pb <- progress_bar$new(format = ":current/:total [:bar] :percent ETA::eta",,
 			total = nrow(exprObj), width= 60, clear=FALSE)
 
@@ -231,7 +237,7 @@ setGeneric("fitVarPartModel", signature="exprObj",
 
 		if( isTRUE(inherits(possibleError, "error") &&  grep('the fixed-effects model matrix is column rank deficient', possibleError$message) == 1) ){
 			stop(paste(possibleError$message, "\n\nSuggestion: rescale fixed effect variables.\nThis will not change the variance fractions or p-values."))
-		} 
+		}
 
 		# fit first model to initialize other model fits
 		# this make the other models converge faster
@@ -250,7 +256,7 @@ setGeneric("fitVarPartModel", signature="exprObj",
 		# check that model fit is valid, and throw warning if not
 		checkModelStatus( fitInit, showWarnings=showWarnings, colinearityCutoff=colinearityCutoff, immediate=TRUE )
 
-		# specify gene explicitly in data 
+		# specify gene explicitly in data
 		# required for downstream processing with lmerTest
 		data2 = data.frame(data, expr=responsePlaceholder$E, check.names=FALSE)
 		form = paste( "expr", paste(as.character( formula), collapse=''))
@@ -260,7 +266,7 @@ setGeneric("fitVarPartModel", signature="exprObj",
 
 			# modify data2 for this gene
 			data2$expr = responsePlaceholder$E
- 
+
 			# fit linear mixed model
 			fit = lmer( eval(parse(text=form)), data=data2, ..., REML=REML, weights=responsePlaceholder$weights, control=control,na.action=na.action)
 
@@ -280,9 +286,9 @@ setGeneric("fitVarPartModel", signature="exprObj",
 
 		# Evaluate function
 		###################
-		
+
 		it = iterBatch(exprObj, weightsMatrix, useWeights, n_chunks = 100, BPPARAM = BPPARAM)
-		
+
 		if( !quiet ) message(paste0("Dividing work into ",attr(it, "n_chunks")," chunks..."))
 
     resList <- bpiterate( it, .eval_master,
@@ -317,7 +323,7 @@ setGeneric("fitVarPartModel", signature="exprObj",
 #' @rdname fitVarPartModel-method
 #' @aliases fitVarPartModel,matrix-method
 setMethod("fitVarPartModel", "matrix",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL, showWarnings=TRUE,fxn=identity, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL, showWarnings=TRUE,fxn=identity, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
   {
     .fitVarPartModel(exprObj, formula, data, REML=REML, useWeights=useWeights, weightsMatrix=weightsMatrix, showWarnings=showWarnings, fxn=fxn, control=control, quiet=quiet, BPPARAM=BPPARAM,...)
   }
@@ -328,18 +334,18 @@ setMethod("fitVarPartModel", "matrix",
 #' @rdname fitVarPartModel-method
 #' @aliases fitVarPartModel,data.frame-method
 setMethod("fitVarPartModel", "data.frame",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, showWarnings=TRUE,fxn=identity, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, showWarnings=TRUE,fxn=identity, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
   {
     .fitVarPartModel( as.matrix(exprObj), formula, data, REML=REML, useWeights=useWeights, weightsMatrix=weightsMatrix, showWarnings=showWarnings, fxn=fxn, control=control, quiet=quiet, BPPARAM=BPPARAM, ...)
   }
 )
 
-## EList 
+## EList
 #' @export
 #' @rdname fitVarPartModel-method
 #' @aliases fitVarPartModel,EList-method
 setMethod("fitVarPartModel", "EList",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, showWarnings=TRUE,fxn=identity, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, showWarnings=TRUE,fxn=identity, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
   {
     .fitVarPartModel( as.matrix(exprObj$E), formula, data, REML=REML, useWeights=useWeights, weightsMatrix=exprObj$weights, showWarnings=showWarnings, fxn=fxn, control=control, quiet=quiet, BPPARAM=BPPARAM,...)
   }
@@ -351,7 +357,7 @@ setMethod("fitVarPartModel", "EList",
 #' @aliases fitVarPartModel,ExpressionSet-method
 #' @importFrom Biobase ExpressionSet exprs
 setMethod("fitVarPartModel", "ExpressionSet",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL, showWarnings=TRUE,fxn=identity, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL, showWarnings=TRUE,fxn=identity, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
   {
     .fitVarPartModel( as.matrix(exprs(exprObj)), formula, data, REML=REML, useWeights=useWeights, weightsMatrix=weightsMatrix, showWarnings=showWarnings, fxn=fxn, control=control, quiet=quiet, BPPARAM=BPPARAM, ...)
   }
@@ -363,33 +369,33 @@ setMethod("fitVarPartModel", "ExpressionSet",
 #' @aliases fitVarPartModel,sparseMatrix-method
 #' @importFrom Matrix sparseMatrix
 setMethod("fitVarPartModel", "sparseMatrix",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, showWarnings=TRUE,fxn=identity, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, showWarnings=TRUE,fxn=identity, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
   {
     .fitVarPartModel( exprObj, formula, data, REML=REML, useWeights=useWeights, weightsMatrix=weightsMatrix, showWarnings=showWarnings, fxn=fxn, control=control, quiet=quiet, BPPARAM=BPPARAM, ...)
   }
 )
 
 #' Fit linear (mixed) model, report variance fractions
-#' 
-#' Fit linear (mixed) model to estimate contribution of multiple sources of variation while simultaneously correcting for all other variables. Report fraction of variance attributable to each variable 
+#'
+#' Fit linear (mixed) model to estimate contribution of multiple sources of variation while simultaneously correcting for all other variables. Report fraction of variance attributable to each variable
 #'
 #' @param exprObj matrix of expression data (g genes x n samples), or \code{ExpressionSet}, or \code{EList} returned by \code{voom()} from the \code{limma} package
 #' @param formula specifies variables for the linear (mixed) model.  Must only specify covariates, since the rows of exprObj are automatically used a a response. e.g.: \code{~ a + b + (1|c)}
-#' @param data \code{data.frame} with columns corresponding to formula 
+#' @param data \code{data.frame} with columns corresponding to formula
 #' @param REML use restricted maximum likelihood to fit linear mixed model. default is FALSE.   See Details.
 #' @param useWeights if TRUE, analysis uses heteroskedastic error estimates from \code{voom()}.  Value is ignored unless exprObj is an \code{EList()} from \code{voom()} or \code{weightsMatrix} is specified
-#' @param weightsMatrix matrix the same dimension as exprObj with observation-level weights from \code{voom()}.  Used only if \code{useWeights} is TRUE 
+#' @param weightsMatrix matrix the same dimension as exprObj with observation-level weights from \code{voom()}.  Used only if \code{useWeights} is TRUE
 #' @param showWarnings show warnings about model fit (default TRUE)
 #' @param control control settings for \code{lmer()}
 #' @param quiet suppress message, default FALSE
 #' @param BPPARAM parameters for parallel evaluation
 #' @param ... Additional arguments for \code{lmer()} or \code{lm()}
-#' 
+#'
 #' @return
 #' list() of where each entry is a model fit produced by \code{lmer()} or \code{lm()}
 #'
-#' @details 
-#' A linear (mixed) model is fit for each gene in exprObj, using formula to specify variables in the regression.  If categorical variables are modeled as random effects (as is recommended), then a linear mixed model us used.  For example if formula is \code{~ a + b + (1|c)}, then the model is 
+#' @details
+#' A linear (mixed) model is fit for each gene in exprObj, using formula to specify variables in the regression.  If categorical variables are modeled as random effects (as is recommended), then a linear mixed model us used.  For example if formula is \code{~ a + b + (1|c)}, then the model is
 #'
 #' fit <- lmer( exprObj[j,] ~ a + b + (1|c), data=data)
 #'
@@ -400,7 +406,7 @@ setMethod("fitVarPartModel", "sparseMatrix",
 #' In both cases, \code{useWeights=TRUE} causes \code{weightsMatrix[j,]} to be included as weights in the regression model.
 #'
 #' Note: Fitting the model for 20,000 genes can be computationally intensive.  To accelerate computation, models can be fit in parallel using \code{BiocParallel} to run in parallel.  Parallel processing must be enabled before calling this function.  See below.
-#' 
+#'
 #' The regression model is fit for each gene separately. Samples with missing values in either gene expression or metadata are omitted by the underlying call to \code{lm}/\code{lmer}.
 #'
 #' \code{REML=FALSE} uses maximum likelihood to estimate variance fractions.  This approach produced unbiased estimates, while \code{REML=TRUE} can show substantial bias.  See Vignette "3) Theory and practice of random effects and REML"
@@ -416,22 +422,22 @@ setMethod("fitVarPartModel", "sparseMatrix",
 #' # geneExpr: matrix of gene expression values
 #' # info: information/metadata about each sample
 #' data(varPartData)
-#' 
+#'
 #' # Specify variables to consider
 #' # Age is continuous so we model it as a fixed effect
 #' # Individual and Tissue are both categorical, so we model them as random effects
-#' form <- ~ Age + (1|Individual) + (1|Tissue) 
-#' 
+#' form <- ~ Age + (1|Individual) + (1|Tissue)
+#'
 #' # Step 1: fit linear mixed model on gene expression
 #' # If categorical variables are specified, a linear mixed model is used
 #' # If all variables are modeled as continuous, a linear model is used
 #' # each entry in results is a regression model fit on a single gene
 #' # Step 2: extract variance fractions from each model fit
-#' # for each gene, returns fraction of variation attributable to each variable 
+#' # for each gene, returns fraction of variation attributable to each variable
 #' # Interpretation: the variance explained by each variable
 #' # after correction for all other variables
 #' varPart <- fitExtractVarPartModel( geneExpr, form, info )
-#'  
+#'
 #' # violin plot of contribution of each variable to total variance
 #' plotVarPart( sortCols( varPart ) )
 #'
@@ -442,7 +448,7 @@ setMethod("fitVarPartModel", "sparseMatrix",
 #' form <- ~ (1|sex) + (1|type) + score
 #' info2 <- Biobase::pData(sample.ExpressionSet)
 #' varPart2 <- fitExtractVarPartModel( sample.ExpressionSet, form, info2 )
-#' 
+#'
 # # Parallel processing using multiple cores with reduced memory usage
 # param = SnowParam(4, "SOCK", progressbar=TRUE)
 # varPart2 <- fitExtractVarPartModel( sample.ExpressionSet, form, info2, BPPARAM = param)
@@ -453,17 +459,17 @@ setMethod("fitVarPartModel", "sparseMatrix",
 #' @rdname fitExtractVarPartModel-method
 #' @importFrom BiocParallel SerialParam bpiterate bplapply bpok
 setGeneric("fitExtractVarPartModel", signature="exprObj",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,  showWarnings=TRUE, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,  showWarnings=TRUE, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
       standardGeneric("fitExtractVarPartModel")
 )
 
 # internal driver function
 #' @importFrom methods is new
-#' @importFrom lme4 lmer 
+#' @importFrom lme4 lmer
 #' @importFrom RhpcBLASctl omp_set_num_threads
 #' @importFrom progress progress_bar
 #' @import foreach
-.fitExtractVarPartModel <- function( exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL, showWarnings=TRUE, colinearityCutoff=.999, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(),...){ 
+.fitExtractVarPartModel <- function( exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL, showWarnings=TRUE, colinearityCutoff=.999, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(),...){
 
 	# convert to data.frame
 	data = as.data.frame(data)
@@ -475,7 +481,7 @@ setGeneric("fitExtractVarPartModel", signature="exprObj",
 	data = data[, colnames(data) %in% unique(all.vars(formula)), drop=FALSE]
 
 	# check dimensions of reponse and covariates
-	if( ncol(exprObj) != nrow(data) ){		
+	if( ncol(exprObj) != nrow(data) ){
 		stop( "the number of samples in exprObj (i.e. cols) must be the same as in data (i.e rows)" )
 	}
 
@@ -492,7 +498,7 @@ setGeneric("fitExtractVarPartModel", signature="exprObj",
 		if( countNA > 0 ){
 			stop("There are ", countNA, " NA/NaN/Inf values in exprObj\nMissing data is not allowed")
 		}
-		
+
 		rv = apply( exprObj, 1, var)
 	}else{
 		# if exprObj is a sparseMatrix, this method will compute row-wise
@@ -506,7 +512,7 @@ setGeneric("fitExtractVarPartModel", signature="exprObj",
 		idx = which(rv == 0)
 		stop(paste("Response variable", idx[1], 'has a variance of 0'))
 	}
-	
+
 	# if weightsMatrix is not specified, set useWeights to FALSE
 	if( useWeights && is.null(weightsMatrix) ){
 		# warning("useWeights was ignored: no weightsMatrix was specified")
@@ -549,7 +555,7 @@ setGeneric("fitExtractVarPartModel", signature="exprObj",
 		# check that model fit is valid, and throw warning if not
 		checkModelStatus( fit, showWarnings=showWarnings, colinearityCutoff=colinearityCutoff, immediate=TRUE )
 
-		testValue = calcVarPart( fit, showWarnings=showWarnings, colinearityCutoff=colinearityCutoff )		
+		testValue = calcVarPart( fit, showWarnings=showWarnings, colinearityCutoff=colinearityCutoff )
 
 		timeStart = proc.time()
 
@@ -558,7 +564,7 @@ setGeneric("fitExtractVarPartModel", signature="exprObj",
 			# fit linear mixed model
 			fit = lm( eval(parse(text=form)), data=data, weights=responsePlaceholder$weights,na.action=stats::na.exclude,...)
 
-			calcVarPart( fit, showWarnings=showWarnings, colinearityCutoff=colinearityCutoff )		
+			calcVarPart( fit, showWarnings=showWarnings, colinearityCutoff=colinearityCutoff )
 		}
 
 		modelType = "anova"
@@ -567,7 +573,7 @@ setGeneric("fitExtractVarPartModel", signature="exprObj",
 
 		if( inherits(possibleError, "error") && grep('the fixed-effects model matrix is column rank deficient', possibleError$message) == 1 ){
 			stop(paste(possibleError$message, "\n\nSuggestion: rescale fixed effect variables.\nThis will not change the variance fractions or p-values."))
-		}  
+		}
 
 		# fit first model to initialize other model fits
 		# this make the other models converge faster
@@ -634,7 +640,7 @@ setGeneric("fitExtractVarPartModel", signature="exprObj",
 	rownames(varPartMat) <- rownames(exprObj)
 
 	res <- new("varPartResults", varPartMat, type=modelType, method="Variance explained (%)")
-	
+
 	return( res )
 }
 
@@ -643,7 +649,7 @@ setGeneric("fitExtractVarPartModel", signature="exprObj",
 #' @rdname fitExtractVarPartModel-method
 #' @aliases fitExtractVarPartModel,matrix-method
 setMethod("fitExtractVarPartModel", "matrix",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,  showWarnings=TRUE, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,  showWarnings=TRUE, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
   {
     .fitExtractVarPartModel(exprObj, formula, data,
                      REML=REML, useWeights=useWeights, weightsMatrix=weightsMatrix,  showWarnings=showWarnings, control=control, quiet=quiet,
@@ -656,7 +662,7 @@ setMethod("fitExtractVarPartModel", "matrix",
 #' @rdname fitExtractVarPartModel-method
 #' @aliases fitExtractVarPartModel,data.frame-method
 setMethod("fitExtractVarPartModel", "data.frame",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,  showWarnings=TRUE, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,  showWarnings=TRUE, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
   {
     .fitExtractVarPartModel( as.matrix(exprObj), formula, data,
                      REML=REML, useWeights=useWeights, weightsMatrix=weightsMatrix,  showWarnings=showWarnings, control=control, quiet=quiet,
@@ -669,10 +675,10 @@ setMethod("fitExtractVarPartModel", "data.frame",
 #' @rdname fitExtractVarPartModel-method
 #' @aliases fitExtractVarPartModel,EList-method
 setMethod("fitExtractVarPartModel", "EList",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE,  showWarnings=TRUE, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE,  showWarnings=TRUE, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
   {
     .fitExtractVarPartModel( as.matrix(exprObj$E), formula, data,
-                     REML=REML, useWeights=useWeights, weightsMatrix=exprObj$weights,  showWarnings=showWarnings, control=control, quiet=quiet,  
+                     REML=REML, useWeights=useWeights, weightsMatrix=exprObj$weights,  showWarnings=showWarnings, control=control, quiet=quiet,
                          BPPARAM=BPPARAM, ...)
   }
 )
@@ -682,10 +688,10 @@ setMethod("fitExtractVarPartModel", "EList",
 #' @rdname fitExtractVarPartModel-method
 #' @aliases fitExtractVarPartModel,ExpressionSet-method
 setMethod("fitExtractVarPartModel", "ExpressionSet",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,  showWarnings=TRUE, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,  showWarnings=TRUE, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
   {
     .fitExtractVarPartModel( as.matrix(exprs(exprObj)), formula, data,
-                     REML=REML, useWeights=useWeights, weightsMatrix=weightsMatrix,  showWarnings=showWarnings, control=control, quiet=quiet, 
+                     REML=REML, useWeights=useWeights, weightsMatrix=weightsMatrix,  showWarnings=showWarnings, control=control, quiet=quiet,
                      	 BPPARAM=BPPARAM,...)
   }
 )
@@ -695,7 +701,7 @@ setMethod("fitExtractVarPartModel", "ExpressionSet",
 #' @rdname fitExtractVarPartModel-method
 #' @aliases fitExtractVarPartModel,sparseMatrix-method
 setMethod("fitExtractVarPartModel", "sparseMatrix",
-  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,  showWarnings=TRUE, control = lme4::lmerControl(calc.derivs=FALSE, check.rankX="stop.deficient" ), quiet=FALSE, BPPARAM=SerialParam(), ...)
+  function(exprObj, formula, data, REML=FALSE, useWeights=TRUE, weightsMatrix=NULL,  showWarnings=TRUE, control = vpcontrol, quiet=FALSE, BPPARAM=SerialParam(), ...)
   {
     .fitExtractVarPartModel( exprObj, formula, data,
                      REML=REML, useWeights=useWeights, weightsMatrix=weightsMatrix,  showWarnings=showWarnings, control=control, quiet=quiet,
